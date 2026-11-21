@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6f3ee">
+<title>Perhekalenteri</title>
+<style>
+  :root {
+    --tausta: #f6f3ee;
+    --kortti: #ffffff;
+    --teksti: #1f2328;
+    --heikko: #6b7280;
+    --viiva: #e7e2da;
+    --korostus: #fff6d6;
+    --korostus-reuna: #f0c64a;
+    --perhe: #1f9d8b;
+    --sade: #2b6cb0;
+    --varoitus: #b45309;
+  }
+  body.yo {
+    --tausta: #111418;
+    --kortti: #1a1f25;
+    --teksti: #e7e9ec;
+    --heikko: #8b939d;
+    --viiva: #2a3038;
+    --korostus: #2b2617;
+    --korostus-reuna: #8a7128;
+    --sade: #7fb3f0;
+    --varoitus: #f2a541;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--tausta);
+    color: var(--teksti);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: clamp(14px, 1.6vw, 22px);
+    transition: background .6s, color .6s;
+    overflow: hidden;
+  }
+  .sivu {
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 1.2vw;
+    padding: 1.6vw 2vw;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2vw;
+  }
+  header { min-width: 0; }
+  .paiva { white-space: nowrap; }
+  .tila { font-size: 1em !important; text-align: left !important; }
+  .kello { font-size: 4.2em; font-weight: 700; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .paiva { font-size: 1.9em; font-weight: 600; }
+  .paiva small { display: block; font-size: .55em; font-weight: 400; color: var(--heikko); margin-top: .2em; }
+  .tila { color: var(--heikko); font-size: .8em; text-align: right; }
+
+  .saa { display: flex; align-items: stretch; gap: .9em; margin-left: auto; min-width: 0; overflow: hidden; }
+  .saa .vihje {
+    align-self: center; font-weight: 700; font-size: 1.05em; white-space: nowrap;
+    background: var(--korostus); border: 1px solid var(--korostus-reuna); border-radius: 999px; padding: .3em .8em;
+  }
+  .saa .tunnit { display: flex; gap: .15em; }
+  .saa .tunti { width: 2.6em; flex: none; text-align: center; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .saa .tunti .h { font-size: .7em; color: var(--heikko); }
+  .saa .tunti .k { font-size: 1.45em; line-height: 1.2; }
+  .saa .tunti .c { font-weight: 700; font-size: .95em; }
+  .saa .tunti .r { font-size: .68em; color: var(--sade); font-weight: 600; min-height: 1.2em; }
+  .saa .tunti.sataa { background: color-mix(in srgb, var(--sade) 12%, transparent); border-radius: 8px; }
+  .tila.vanha { color: #c2410c; }
+
+  main {
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    gap: 1.4vw;
+    min-height: 0;
+  }
+  .vasen, .oikea { display: grid; gap: 1.4vw; min-height: 0; }
+  .vasen { grid-template-rows: 1.2fr 1fr; }
+  body.ilta .vasen { grid-template-rows: 1fr 1.3fr; } /* illalla huominen tärkeämpi */
+  .oikea { grid-template-rows: auto 1fr; }
+
+  .kortti {
+    background: var(--kortti);
+    border: 1px solid var(--viiva);
+    border-radius: 18px;
+    padding: 1.1vw 1.4vw;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .kortti h2 {
+    margin: 0 0 .5em;
+    font-size: 1.15em;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--heikko);
+    font-weight: 700;
+  }
+  .lista { list-style: none; margin: 0; padding: 0; overflow: hidden; flex: 1; min-height: 0; }
+  .tapahtuma .aika small { display: block; font-weight: 400; color: var(--heikko); font-size: .7em; }
+
+  .tapahtuma {
+    display: grid;
+    grid-template-columns: 4.6em 1fr;
+    gap: .2em .8em;
+    align-items: start;
+    padding: .2em 0 .2em .8em;
+    border-left: 6px solid var(--vari, var(--perhe));
+    margin-bottom: .3em;
+  }
+  .tapahtuma .aika { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tapahtuma .aika.kokopv { font-weight: 500; color: var(--heikko); font-size: .85em; padding-top: .15em; }
+  .tapahtuma .nimi { font-weight: 600; line-height: 1.25; }
+  .tapahtuma .lisa { color: var(--heikko); font-size: .75em; line-height: 1.3; margin-top: .1em; }
+  .tapahtuma .muista { font-size: .85em; font-weight: 600; margin-top: .1em; }
+  .tapahtuma.mennyt { opacity: .4; font-size: .8em !important; padding-top: .15em; padding-bottom: .15em; }
+  .tapahtuma.mennyt .lisa, .tapahtuma.mennyt .muista, .tapahtuma.mennyt .aika small { display: none; }
+  .tapahtuma.nyt { background: color-mix(in srgb, var(--vari, var(--perhe)) 10%, transparent); border-radius: 0 10px 10px 0; }
+
+  .tanaan .tapahtuma { font-size: 1.15em; }
+  .huomenna .tapahtuma { font-size: 1em; }
+  .koulurivit { margin: -.1em 0 .6em; display: grid; gap: .25em; }
+  .koulurivi { font-size: .85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .koulurivi b { font-variant-numeric: tabular-nums; margin-right: .6em; }
+  .koulurivi .aineet { color: var(--heikko); }
+  .koulurivi.ohi { opacity: .45; }
+  .koulurivi.peruttu b, .koulurivi.peruttu .aineet { text-decoration: line-through; }
+  .poikkeusrivi { font-size: .85em; font-weight: 600; color: var(--varoitus); padding-left: 1.6em; }
+  .poikkeusrivi .merkki { color: var(--merkkiteksti, #fff); }
+  .muistalaatikko li.poikkeus { color: var(--varoitus); }
+
+  .merkki {
+    display: inline-block;
+    font-size: .7em;
+    font-weight: 700;
+    color: var(--merkkiteksti, #fff);
+    background: var(--vari, var(--perhe));
+    border-radius: 999px;
+    padding: .1em .6em;
+    margin-right: .4em;
+    vertical-align: .15em;
+  }
+  .tarkista {
+    font-size: .65em; font-weight: 600; color: #b45309;
+    border: 1px solid currentColor; border-radius: 999px; padding: .05em .5em; margin-left: .4em; vertical-align: .2em;
+  }
+
+  .muistalaatikko { background: var(--korostus); border-color: var(--korostus-reuna); }
+  .muistalaatikko ul { list-style: none; margin: 0; padding: 0; }
+  .muistalaatikko li { font-size: 1.15em; font-weight: 600; padding: .25em 0; }
+  .muistalaatikko li .merkki { font-size: .65em; }
+  .muistalaatikko li.laksy { font-size: 1em; }
+  .muistalaatikko li.laksy span { font-weight: 400; }
+
+  .viikko .paivarivi { padding: .5em 0; border-bottom: 1px solid var(--viiva); }
+  .viikko .paivarivi:last-child { border-bottom: 0; }
+  .viikko .pvnimi { font-weight: 700; margin-bottom: .2em; }
+  .viikko .pvnimi span { color: var(--heikko); font-weight: 400; margin-left: .3em; }
+  .viikko .rivi { display: flex; gap: .5em; align-items: baseline; font-size: .92em; line-height: 1.45; }
+  .viikko .rivi .piste { width: .6em; height: .6em; border-radius: 50%; background: var(--vari, var(--perhe)); flex: none; transform: translateY(-.05em); }
+  .viikko .rivi .klo { font-variant-numeric: tabular-nums; color: var(--heikko); min-width: 3em; }
+  .viikko .tyhja { color: var(--heikko); font-size: .9em; }
+
+  .tyhja-iso { color: var(--heikko); font-size: 1.2em; padding: .4em 0; }
+  .lisaa { color: var(--heikko); font-size: .85em; }
+  .kortti { position: relative; }
+  .kortti > .lisaa { position: absolute; right: 1.4vw; top: 1.1vw; font-weight: 600; }
+
+  .asetus { max-width: 34em; margin: 12vh auto; padding: 2em; }
+  .asetus input { width: 100%; font-size: 1em; padding: .6em; margin: .4em 0 1em; border-radius: 8px; border: 1px solid var(--viiva); background: var(--kortti); color: var(--teksti); }
+  .asetus button { font-size: 1em; padding: .6em 1.2em; border-radius: 8px; border: 0; background: var(--perhe); color: #fff; font-weight: 600; }
+
+  @media (max-width: 760px) {
+    body { overflow: auto; font-size: 16px; }
+    .sivu { height: auto; padding: 16px; }
+    main, .vasen, .oikea { grid-template-columns: 1fr; grid-template-rows: auto; }
+    .kello { font-size: 3em; }
+  }
+</style>
+</head>
+<body>
+<div id="sovellus"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Asetukset
+// ---------------------------------------------------------------------------
+// Perheenjäsenet ja värit sekä sään sijainti tulevat Apps Scriptiltä (Naytto.gs), jotta
+// julkisella sivulla ei ole nimiä eikä sijaintia.
+let HENKILOT = [];
+// Wilman lukkarin lyhenteet → lyhyt nimi näytön koulupäiväriville (täydet nimet ovat koulukalentereissa).
+// Tuntematon lyhenne näytetään sellaisenaan.
+const AINEET = {
+  SUK: 'Suomi', MA: 'Matikka', YM: 'Ympäristöoppi', LI: 'Liikunta', ENA1: 'Englanti',
+  KS: 'Käsityö', KU: 'Kuvis', MU: 'Musiikki', ttMUP: 'Musiikki', UEEV: 'Uskonto', ET: 'ET',
+  ENA: 'Englanti', UE: 'Uskonto',
+};
+// Aine huomenna → muistutus "Muista huomiseksi" -laatikkoon.
+const VARUSTEET = { LI: '👟 liikuntavarusteet' };
+const URHEILU = ['🏒', '🤸', '⚽']; // MyClub-merkinnät → "Muista huomiseksi" (varusteet)
+const PAIVITYSVALI_MIN = 5;
+const YO_ALKAA = 21, YO_PAATTYY = 6; // näyttö tummenee illaksi
+
+const VIIKONPAIVAT = ['sunnuntai', 'maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai'];
+const KUUKAUDET = ['tammikuuta', 'helmikuuta', 'maaliskuuta', 'huhtikuuta', 'toukokuuta', 'kesäkuuta',
+  'heinäkuuta', 'elokuuta', 'syyskuuta', 'lokakuuta', 'marraskuuta', 'joulukuuta'];
+
+// ---------------------------------------------------------------------------
+// Asetusten tallennus tabletille (osoite + avain kerran, sitten muistissa)
+// ---------------------------------------------------------------------------
+const muisti = {
+  lue(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  kirjoita(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+
+const parametrit = new URLSearchParams(location.search);
+const DEMO = parametrit.has('demo');
+if (parametrit.get('api')) muisti.kirjoita('api', parametrit.get('api'));
+if (parametrit.get('k')) muisti.kirjoita('avain', parametrit.get('k'));
+if (parametrit.get('api') || parametrit.get('k')) history.replaceState(null, '', location.pathname);
+
+let data = null;
+let viimeOnnistui = 0;
+let virhe = '';
+
+// ---------------------------------------------------------------------------
+// Datan haku
+// ---------------------------------------------------------------------------
+async function hae() {
+  if (DEMO) { data = demoData(); HENKILOT = data.henkilot; viimeOnnistui = Date.now(); virhe = ''; return piirra(); }
+  const api = muisti.lue('api'), avain = muisti.lue('avain');
+  if (!api || !avain) return piirraAsetus();
+  try {
+    const r = await fetch(api + (api.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(avain), { cache: 'no-store' });
+    const json = await r.json();
+    if (json.virhe) throw new Error(json.virhe);
+    data = json;
+    HENKILOT = json.henkilot || [];
+    viimeOnnistui = Date.now();
+    virhe = '';
+    muisti.kirjoita('viimeisin', JSON.stringify(json));
+  } catch (e) {
+    virhe = e.message || 'Ei yhteyttä';
+    if (!data) {
+      const vanha = muisti.lue('viimeisin');
+      if (vanha) { data = JSON.parse(vanha); HENKILOT = data.henkilot || []; viimeOnnistui = Date.parse(data.paivitetty) || 0; }
+    }
+  }
+  piirra();
+}
+
+// ---------------------------------------------------------------------------
+// Apufunktiot
+// ---------------------------------------------------------------------------
+const pad = n => String(n).padStart(2, '0');
+const pvmAvain = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const klo = d => d.getHours() + '.' + pad(d.getMinutes());
+const paivanAlku = (d, lisaa = 0) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() + lisaa); return x; };
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/** Tunnistaa henkilön ja kuvakkeen otsikosta ja siivoaa otsikon näyttöä varten. */
+function tulkitse(t) {
+  let otsikko = t.otsikko;
+  const tarkista = otsikko.includes('❓');
+  let kuvake = '';
+  const laji = URHEILU.find(k => otsikko.includes(k));
+  if (laji) kuvake = laji;
+  else if (otsikko.includes('🤖') || otsikko.includes('🏫')) kuvake = '🏫';
+  else if (otsikko.includes('💼')) kuvake = '💼';
+  else if (otsikko.includes('📚')) kuvake = '📚';
+  otsikko = otsikko.replace(/[⚽🏒🤸🤖🏫💼❓📚]/gu, '').trim();
+
+  // Henkilö: "Nimi: Retki" → merkki + "Retki". Nimi muualla otsikossa → vain väri.
+  let henkilo = null, nimiNakyviin = false;
+  for (const h of HENKILOT) {
+    const etuliite = new RegExp('^' + h.nimi + ':\\s*', 'i');
+    if (etuliite.test(otsikko)) { henkilo = h; nimiNakyviin = true; otsikko = otsikko.replace(etuliite, ''); break; }
+    if (new RegExp('\\b' + h.nimi + '\\b', 'i').test(otsikko)) { henkilo = h; break; }
+  }
+  // 💼 ilman nimeä = työmeno sille, jolla on tyo: true (Naytto.gs).
+  if (!henkilo && kuvake === '💼') henkilo = HENKILOT.find(h => h.tyo) || null;
+  const alku = t.kokoPaiva ? null : new Date(t.alku);
+  const loppu = t.kokoPaiva ? null : new Date(t.loppu);
+  return { ...t, otsikko, kuvake, tarkista, henkilo, nimiNakyviin, alkuD: alku, loppuD: loppu };
+}
+
+function paivanTapahtumat(tapahtumat, paiva) {
+  const avain = pvmAvain(paiva);
+  const alku = paivanAlku(paiva), loppu = paivanAlku(paiva, 1);
+  return tapahtumat.filter(t => t.kokoPaiva
+    ? t.alku <= avain && avain < t.loppu
+    : t.alkuD < loppu && t.loppuD > alku)
+    .sort((a, b) => (a.kokoPaiva === b.kokoPaiva ? (a.alkuD || 0) - (b.alkuD || 0) : a.kokoPaiva ? -1 : 1));
+}
+
+function aikaTeksti(t, paiva) {
+  if (t.kokoPaiva) return 'koko päivä';
+  const alkaaTanaan = t.alkuD >= paivanAlku(paiva);
+  const loppuuTanaan = t.loppuD <= paivanAlku(paiva, 1);
+  if (!alkaaTanaan && !loppuuTanaan) return 'koko päivä';
+  if (!alkaaTanaan) return '– ' + klo(t.loppuD);
+  return klo(t.alkuD);
+}
+
+function nimiMerkki(t) {
+  return t.nimiNakyviin ? '<span class="merkki">' + esc(t.henkilo.nimi) + '</span>' : '';
+}
+
+function variTyyli(t) {
+  if (!t.henkilo) return '';
+  return ' style="--vari:' + t.henkilo.vari + (t.henkilo.teksti ? ';--merkkiteksti:' + t.henkilo.teksti : '') + '"';
+}
+
+// ---------------------------------------------------------------------------
+// Piirto
+// ---------------------------------------------------------------------------
+function tapahtumaRivi(t, paiva, nyt, naytaPaikka) {
+  const aika = aikaTeksti(t, paiva);
+  const mennyt = !t.kokoPaiva && t.loppuD < nyt;
+  const kaynnissa = !t.kokoPaiva && t.alkuD <= nyt && t.loppuD > nyt;
+  const lisa = [];
+  const samaPaiva = !t.kokoPaiva && t.alkuD >= paivanAlku(paiva) && t.loppuD <= paivanAlku(paiva, 1);
+  if (naytaPaikka && t.paikka) lisa.push(esc(t.paikka));
+  return '<li class="tapahtuma' + (mennyt ? ' mennyt' : '') + (kaynnissa ? ' nyt' : '') + (t.koulu ? ' koulu' : '') + '"' + variTyyli(t) + '>' +
+    '<div class="aika' + (aika === 'koko päivä' ? ' kokopv' : '') + '">' + aika +
+      (samaPaiva ? '<small>–' + klo(t.loppuD) + '</small>' : '') + '</div>' +
+    '<div><div class="nimi">' + nimiMerkki(t) + (t.kuvake ? t.kuvake + ' ' : '') + esc(t.otsikko) +
+      (t.tarkista ? '<span class="tarkista">tarkista</span>' : '') + '</div>' +
+    (lisa.length ? '<div class="lisa">' + lisa.join(' · ') + '</div>' : '') +
+    (t.muista ? '<div class="muista">🎒 ' + esc(t.muista) + '</div>' : '') +
+    '</div></li>';
+}
+
+function pieniAlku(teksti) { return teksti.charAt(0).toLowerCase() + teksti.slice(1); }
+
+function poikkeusRivi(t, nimi) {
+  return '<div class="poikkeusrivi"' + variTyyli(t) + '>⚠️ ' + (nimi ? nimiMerkki(t) : '') +
+    'Poikkeusaikataulu: ' + esc(pieniAlku(t.poikkeus)) + (t.tarkista ? '<span class="tarkista">tarkista</span>' : '') + '</div>';
+}
+
+function paivaKortti(luokka, otsikko, kaikki, paiva, nyt) {
+  // Päättyneet menot pois, jotta tuleville riittää tilaa.
+  // Koko päivän poikkeusaikataulut näkyvät lukkarin alla, eivät erikseen listassa.
+  const lista = kaikki.filter(t => !t.koulu && !(t.poikkeus && t.kokoPaiva) && (t.kokoPaiva || t.loppuD > nyt));
+  const koulu = kaikki.filter(t => t.koulu);
+  const poikkeukset = kaikki.filter(t => t.poikkeus);
+  const rivit = lista.map(t => tapahtumaRivi(t, paiva, nyt, true)).join('');
+  const lapsenPoikkeukset = h => poikkeukset.filter(p => p.henkilo === h || !p.henkilo);
+  const kayty = new Set();
+  const kouluosat = koulu.map(t => {
+    const omat = lapsenPoikkeukset(t.henkilo);
+    omat.forEach(p => kayty.add(p));
+    const peruttu = omat.some(p => /^ei koulua/i.test(p.poikkeus));
+    return '<div class="koulurivi' + (t.loppuD < nyt ? ' ohi' : '') + (peruttu ? ' peruttu' : '') + '"' + variTyyli(t) + '>📚 ' + nimiMerkki(t) +
+      '<b>' + klo(t.alkuD) + '–' + klo(t.loppuD) + '</b><span class="aineet">' + esc(t.paikka) + '</span></div>' +
+      omat.map(p => poikkeusRivi(p, false)).join('');
+  });
+  // Poikkeus lapselle, jolla ei ole lukkaririviä tälle päivälle.
+  poikkeukset.filter(p => !kayty.has(p)).forEach(p => kouluosat.push(poikkeusRivi(p, true)));
+  const kouluHtml = kouluosat.length ? '<div class="koulurivit">' + kouluosat.join('') + '</div>' : '';
+  return '<section class="kortti ' + luokka + '"><h2>' + otsikko + '</h2>' + kouluHtml +
+    (lista.length ? '<ul class="lista">' + rivit + '</ul><div class="lisaa" hidden></div>'
+       : '<div class="tyhja-iso">' + (koulu.length ? 'Ei muita menoja' : 'Ei menoja') + '</div>') +
+    '</section>';
+}
+
+/** Piilottaa rivit, jotka eivät mahdu korttiin, ja näyttää "+ n muuta". */
+function sovitaListat() {
+  document.querySelectorAll('.kortti .lista').forEach(ul => {
+    const rivit = [...ul.children];
+    let piilossa = 0;
+    for (let i = rivit.length - 1; i > 0 && ul.scrollHeight > ul.clientHeight + 1; i--) {
+      rivit[i].hidden = true;
+      piilossa++;
+    }
+    const lisaa = ul.nextElementSibling;
+    if (lisaa && piilossa) { lisaa.hidden = false; lisaa.textContent = '+ ' + piilossa + ' muuta'; }
+  });
+}
+
+function piirra() {
+  const nyt = new Date();
+  document.body.classList.toggle('yo', nyt.getHours() >= YO_ALKAA || nyt.getHours() < YO_PAATTYY);
+  document.body.classList.toggle('ilta', nyt.getHours() >= 16);
+  if (!data) {
+    document.getElementById('sovellus').innerHTML = '<div class="sivu"><header><div class="kello">' + klo(nyt) + '</div></header><div class="tyhja-iso">Haetaan kalenteria…</div></div>';
+    return;
+  }
+
+  // Koulupäivät (Wilman lukkari) samaan listaan, aineet lisätietoriville.
+  const koulu = (data.koulu || []).map(k => ({
+    otsikko: '📚 ' + k.lapsi + ': Koulu',
+    alku: k.alku, loppu: k.loppu, koulu: true, aineet: k.aineet,
+    paikka: k.aineet.map(a => AINEET[a] || a).filter((a, i, arr) => arr[i - 1] !== a).join(' · '),
+  }));
+  const tapahtumat = (data.tapahtumat || []).concat(koulu).map(tulkitse);
+  const tanaan = paivanAlku(nyt), huomenna = paivanAlku(nyt, 1);
+  const tanaanLista = paivanTapahtumat(tapahtumat, tanaan);
+  const huomennaLista = paivanTapahtumat(tapahtumat, huomenna);
+
+  // Muista huomiseksi: huomisen muistettavat + huomisen treenit/pelit (varusteet).
+  const muistettavat = huomennaLista.filter(t => t.muista)
+    .map(t => '<li' + variTyyli(t) + '>' + nimiMerkki(t) + '🎒 ' + esc(t.muista) + '</li>');
+  const urheilu = huomennaLista.filter(t => URHEILU.includes(t.kuvake) && !t.kokoPaiva)
+    .map(t => '<li' + variTyyli(t) + '>' + nimiMerkki(t) + t.kuvake + ' ' + esc(t.otsikko) + ' klo ' + klo(t.alkuD) + '</li>');
+  const varusteet = huomennaLista.filter(t => t.koulu).flatMap(t =>
+    Object.keys(VARUSTEET).filter(a => t.aineet.includes(a))
+      .map(a => '<li' + variTyyli(t) + '>' + nimiMerkki(t) + VARUSTEET[a] + '</li>'));
+  // Läksyt: viimeisimmän koulupäivän tunneilla annetut (viikonloppuna perjantain).
+  const laksyPaiva = paivanAlku(nyt, nyt.getDay() === 0 ? -2 : nyt.getDay() === 6 ? -1 : 0);
+  const laksyt = (data.laksyt || []).filter(h => h.pvm === pvmAvain(laksyPaiva))
+    .map(h => {
+      const t = tulkitse({ otsikko: h.lapsi + ': ' });
+      return '<li class="laksy"' + variTyyli(t) + '>' + nimiMerkki(t) + '📚 ' +
+        esc(AINEET[h.koodi] || h.aine || h.koodi) + ': <span>' + esc(h.teksti) + '</span></li>';
+    });
+  const poikkeusHuomenna = huomennaLista.filter(t => t.poikkeus)
+    .map(t => '<li class="poikkeus"' + variTyyli(t) + '>' + nimiMerkki(t) + '⚠️ ' + esc(t.poikkeus) + '</li>');
+  const muistaHtml = poikkeusHuomenna.concat(muistettavat, laksyt, varusteet, urheilu);
+
+  let viikko = '';
+  for (let i = 2; i < 6; i++) {
+    const p = paivanAlku(nyt, i);
+    const lista = paivanTapahtumat(tapahtumat, p).filter(t => !t.koulu);
+    viikko += '<div class="paivarivi"><div class="pvnimi">' + VIIKONPAIVAT[p.getDay()].replace(/^./, c => c.toUpperCase()) +
+      '<span>' + p.getDate() + '.' + (p.getMonth() + 1) + '.</span></div>' +
+      (lista.length ? lista.slice(0, 4).map(t =>
+        '<div class="rivi"' + variTyyli(t) + '><span class="piste"></span><span class="klo">' + (t.kokoPaiva ? '' : klo(t.alkuD)) + '</span><span>' +
+        (t.nimiNakyviin ? esc(t.henkilo.nimi) + ': ' : '') + (t.poikkeus ? '⚠️ ' : t.kuvake ? t.kuvake + ' ' : '') + esc(t.otsikko) + '</span></div>').join('') +
+        (lista.length > 4 ? '<div class="rivi lisaa">+ ' + (lista.length - 4) + ' muuta</div>' : '')
+      : '<div class="tyhja">–</div>') +
+      '</div>';
+  }
+
+  const ikaMin = viimeOnnistui ? Math.round((Date.now() - viimeOnnistui) / 60000) : null;
+  const vanha = ikaMin !== null && ikaMin > PAIVITYSVALI_MIN * 3;
+  const tila = DEMO ? 'Demotila' : virhe && vanha ? 'Ei yhteyttä – tiedot ' + ikaMin + ' min vanhoja' : 'Päivitetty ' + (ikaMin === 0 ? 'juuri' : ikaMin + ' min sitten');
+
+  document.getElementById('sovellus').innerHTML =
+    '<div class="sivu">' +
+      '<header>' +
+        '<div class="kello">' + klo(nyt) + '</div>' +
+        '<div class="paiva">' + VIIKONPAIVAT[nyt.getDay()].replace(/^./, c => c.toUpperCase()) + ' ' + nyt.getDate() + '.' + (nyt.getMonth() + 1) + '.' +
+          '<small>Vko ' + viikkonumero(nyt) + ' · <span class="tila' + (vanha ? ' vanha' : '') + '">' + tila + '</span></small></div>' +
+        saaHtml(nyt) +
+      '</header>' +
+      '<main>' +
+        '<div class="vasen">' +
+          paivaKortti('tanaan', 'Tänään', tanaanLista, tanaan, nyt) +
+          paivaKortti('huomenna', 'Huomenna · ' + VIIKONPAIVAT[huomenna.getDay()], huomennaLista, huomenna, nyt) +
+        '</div>' +
+        '<div class="oikea">' +
+          '<section class="kortti muistalaatikko"><h2>Muista huomiseksi</h2>' +
+            (muistaHtml.length ? '<ul>' + muistaHtml.slice(0, 7).join('') + '</ul>' : '<div class="tyhja">Ei mitään erityistä</div>') +
+          '</section>' +
+          '<section class="kortti viikko"><h2>Tulossa</h2>' + viikko + '</section>' +
+        '</div>' +
+      '</main>' +
+    '</div>';
+  sovitaListat();
+}
+
+// ---------------------------------------------------------------------------
+// Sää: Open-Meteo (ilmainen, ei avainta). Sijainti tulee datan mukana (Naytto.gs).
+// ---------------------------------------------------------------------------
+const saaUrl = s => 'https://api.open-meteo.com/v1/forecast?latitude=' + s.lat + '&longitude=' + s.lon +
+  '&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,is_day' +
+  '&timezone=Europe%2FHelsinki&forecast_days=2';
+const SAA_TUNTEJA = 8;
+let saa = null;
+
+async function haeSaa() {
+  try {
+    if (!data || !data.sijainti) throw new Error('ei sijaintia');
+    const r = await fetch(saaUrl(data.sijainti), { cache: 'no-store' });
+    const j = await r.json();
+    saa = muunnaSaa(j);
+    muisti.kirjoita('saa', JSON.stringify(j));
+  } catch (e) {
+    // Ei yhteyttä → viimeisin tallessa oleva ennuste.
+    if (!saa) { try { saa = muunnaSaa(JSON.parse(muisti.lue('saa'))); } catch (_) {} }
+  }
+  if (data) piirra();
+}
+
+function muunnaSaa(j) {
+  if (!j || !j.hourly) throw new Error('ei säädataa');
+  const h = j.hourly;
+  return h.time.map((t, i) => ({
+    aika: new Date(t),
+    lampo: h.temperature_2m[i],
+    tod: h.precipitation_probability[i] ?? 0,
+    mm: h.precipitation[i] ?? 0,
+    koodi: h.weather_code[i],
+    paiva: h.is_day[i] === 1,
+  }));
+}
+
+function saaKuvake(koodi, paiva) {
+  if (koodi === 0) return paiva ? '☀️' : '🌙';
+  if (koodi <= 2) return paiva ? '🌤️' : '☁️';
+  if (koodi === 3) return '☁️';
+  if (koodi === 45 || koodi === 48) return '🌫️';
+  if (koodi >= 51 && koodi <= 57) return '🌦️';
+  if ((koodi >= 61 && koodi <= 67) || (koodi >= 80 && koodi <= 82)) return '🌧️';
+  if ((koodi >= 71 && koodi <= 77) || koodi === 85 || koodi === 86) return '🌨️';
+  if (koodi >= 95) return '⛈️';
+  return '☁️';
+}
+
+const sataa = h => h.tod >= 50 || h.mm >= 0.3;
+const lumi = h => (h.koodi >= 71 && h.koodi <= 77) || h.koodi === 85 || h.koodi === 86;
+
+/** Vihje ulos lähtiessä: loppupäivä (ennen klo 18) tai huominen 7–18. */
+function saaVihje(nyt) {
+  const huomenna = nyt.getHours() >= 18;
+  const p = paivanAlku(nyt, huomenna ? 1 : 0);
+  const alku = huomenna ? new Date(p.getTime() + 7 * 36e5) : nyt;
+  const loppu = new Date(p.getTime() + 18 * 36e5);
+  const tunnit = saa.filter(h => h.aika >= new Date(alku.getTime() - 36e5) && h.aika < loppu);
+  if (!tunnit.length) return '';
+  const etu = huomenna ? 'Huomenna: ' : '';
+  const sade = tunnit.filter(sataa);
+  if (sade.some(lumi)) return etu + '🌨️ Lumisadetta';
+  if (sade.length) return etu + '☂️ Sateenvarjo mukaan';
+  const kylmin = Math.min(...tunnit.map(h => h.lampo));
+  if (kylmin <= -10) return etu + '🧤 Kova pakkanen ' + Math.round(kylmin) + '°';
+  return '';
+}
+
+function saaHtml(nyt) {
+  if (!saa) return '';
+  const tasaTunti = new Date(nyt); tasaTunti.setMinutes(0, 0, 0);
+  const tunnit = saa.filter(h => h.aika >= tasaTunti).slice(0, SAA_TUNTEJA);
+  const vihje = saaVihje(nyt);
+  return '<div class="saa">' +
+    (vihje ? '<div class="vihje">' + vihje + '</div>' : '') +
+    '<div class="tunnit">' + tunnit.map(h =>
+      '<div class="tunti' + (sataa(h) ? ' sataa' : '') + '">' +
+        '<div class="h">' + h.aika.getHours() + '</div>' +
+        '<div class="k">' + saaKuvake(h.koodi, h.paiva) + '</div>' +
+        '<div class="c">' + Math.round(h.lampo) + '°</div>' +
+        '<div class="r">' + (h.mm >= 0.1 ? String(h.mm.toFixed(1)).replace('.', ',') : (h.tod >= 30 ? h.tod + '%' : '')) + '</div>' +
+      '</div>').join('') +
+    '</div></div>';
+}
+
+function viikkonumero(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const pv = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - pv);
+  const vuosi = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - vuosi) / 864e5 + 1) / 7);
+}
+
+function piirraAsetus() {
+  document.getElementById('sovellus').innerHTML =
+    '<div class="kortti asetus"><h2>Perhekalenteri – käyttöönotto</h2>' +
+    '<label>Apps Scriptin verkkosovelluksen osoite<input id="api" placeholder="https://script.google.com/macros/s/.../exec"></label>' +
+    '<label>Näytön avain<input id="avain"></label>' +
+    '<button id="tallenna">Tallenna</button></div>';
+  document.getElementById('tallenna').onclick = () => {
+    muisti.kirjoita('api', document.getElementById('api').value.trim());
+    muisti.kirjoita('avain', document.getElementById('avain').value.trim());
+    hae();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Demodata (?demo) – näyttää miltä sivu näyttää ilman oikeaa kalenteria
+// ---------------------------------------------------------------------------
+function demoData() {
+  const iso = (paiva, h, m) => { const d = paivanAlku(new Date(), paiva); d.setHours(h, m); return d.toISOString(); };
+  const pv = n => pvmAvain(paivanAlku(new Date(), n));
+  const koulupv = (lapsi, n, ah, am, lh, lm, aineet) => ({ lapsi, pvm: pv(n), alku: iso(n, ah, am), loppu: iso(n, lh, lm), aineet });
+  return {
+    paivitetty: new Date().toISOString(),
+    // Keksityt nimet ja paikat: sivu on julkinen.
+    henkilot: [
+      { nimi: 'Ella', vari: '#e0457b' },
+      { nimi: 'Otto', vari: '#2d74da' },
+      { nimi: 'Isä', vari: '#7b8794', tyo: true },
+      { nimi: 'Äiti', vari: '#8ec9f0', teksti: '#0b2a40' },
+    ],
+    sijainti: { lat: 60.17, lon: 24.94 },
+    laksyt: [
+      { lapsi: 'Ella', pvm: pv([-2, 0, 0, 0, 0, 0, -1][new Date().getDay()]), koodi: 'MA', aine: 'Matematiikka', teksti: 'Kirja s. 48 teht. 1–4' },
+      { lapsi: 'Otto', pvm: pv([-2, 0, 0, 0, 0, 0, -1][new Date().getDay()]), koodi: 'SUK', aine: 'Suomen kieli ja kirjallisuus', teksti: 'Lue lukukirjasta s. 30–31' },
+    ],
+    koulu: [
+      koulupv('Ella', 0, 8, 5, 12, 0, ['MA', 'SUK', 'MU', 'ENA1']),
+      koulupv('Otto', 0, 8, 50, 12, 45, ['SUK', 'YM', 'SUK', 'MA']),
+      koulupv('Ella', 1, 8, 5, 12, 0, ['KU', 'SUK', 'MA']),
+      koulupv('Otto', 1, 9, 15, 12, 45, ['LI', 'MU', 'ENA1']),
+    ],
+    tapahtumat: [
+      { otsikko: '🤖 Ella: Teemapäivä, pukeudu punaiseen', kokoPaiva: true, alku: pv(0), loppu: pv(1), muista: 'punainen paita' },
+      { otsikko: '💼 Isä töissä', alku: iso(0, 6, 30), loppu: iso(0, 8, 0) },
+      { otsikko: '🏒 Otto: Harjoitus', alku: iso(0, 17, 0), loppu: iso(0, 19, 0), paikka: 'Jäähalli 1' },
+      { otsikko: '🤸 Ella: Voimistelu', alku: iso(0, 17, 30), loppu: iso(0, 19, 0), paikka: 'Liikuntahalli' },
+      { otsikko: '🏫 Otto: Sisäliikuntaa (palloiluhalli)', kokoPaiva: true, alku: pv(1), loppu: pv(2) },
+      { otsikko: '🤖 Ella: Joulujuhla, koulu päättyy aiemmin', kokoPaiva: true, alku: pv(1), loppu: pv(2), poikkeus: 'Koulu päättyy klo 11.30' },
+      { otsikko: '🤖 Otto: Joulujuhla', alku: iso(1, 9, 0), loppu: iso(1, 10, 0), poikkeus: 'Koulu päättyy klo 12.00' },
+      { otsikko: '🤖 Joululoma alkaa', kokoPaiva: true, alku: pv(4), loppu: pv(5), poikkeus: 'Ei koulua' },
+      { otsikko: '🤖❓ Ella: Matikan koe, luku 3', alku: iso(1, 9, 0), loppu: iso(1, 10, 0) },
+      { otsikko: '🏒 Otto: Harjoitus', alku: iso(1, 16, 30), loppu: iso(1, 18, 30), paikka: 'Jäähalli 2' },
+      { otsikko: 'Äiti: Kampaaja', alku: iso(2, 10, 0), loppu: iso(2, 11, 0) },
+      { otsikko: '💼 Asiakaspalaveri', alku: iso(2, 13, 0), loppu: iso(2, 14, 0) },
+      { otsikko: 'Mummola', alku: iso(2, 16, 0), loppu: iso(2, 19, 0) },
+      { otsikko: '🏒 Otto: Turnaus', alku: iso(3, 11, 10), loppu: iso(3, 13, 30) },
+      { otsikko: '💼 Isä töissä', alku: iso(3, 17, 0), loppu: iso(3, 19, 0) },
+      { otsikko: '🤖 Vanhempainilta', alku: iso(4, 18, 0), loppu: iso(4, 19, 30) },
+      { otsikko: '🤸 Ella: Voimistelu', alku: iso(5, 17, 30), loppu: iso(5, 19, 0) },
+      { otsikko: '🏒 Otto: Pelijää', alku: iso(4, 14, 50), loppu: iso(4, 15, 50) },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Käynnistys
+// ---------------------------------------------------------------------------
+hae().then(haeSaa);
+setInterval(hae, PAIVITYSVALI_MIN * 60000);
+setInterval(haeSaa, 30 * 60000);
+setInterval(() => { if (data) piirra(); }, 20000);
+// Varmuuden vuoksi koko sivun lataus kerran yössä (muistivuodot, päivitykset).
+setInterval(() => { const n = new Date(); if (n.getHours() === 3 && n.getMinutes() < 1) location.reload(); }, 50000);
+</script>
+</body>
+</html>
