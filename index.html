@@ -227,7 +227,8 @@ const parametrit = new URLSearchParams(location.search);
 const DEMO = parametrit.has('demo');
 if (parametrit.get('api')) muisti.kirjoita('api', parametrit.get('api'));
 if (parametrit.get('k')) muisti.kirjoita('avain', parametrit.get('k'));
-if (parametrit.get('api') || parametrit.get('k')) history.replaceState(null, '', location.pathname);
+// Osoite ja avain jätetään osoiteriville: iPadin Koti-valikon kuvake tallentaa osoitteen sellaisenaan,
+// ja kuvakkeesta avattu sivu saa Safarista erillisen muistin.
 
 let data = null;
 let viimeOnnistui = 0;
