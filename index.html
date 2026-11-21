@@ -170,6 +170,8 @@
   .viikko .rivi .piste { width: .6em; height: .6em; border-radius: 50%; background: var(--vari, var(--perhe)); flex: none; transform: translateY(-.05em); }
   .viikko .rivi .klo { font-variant-numeric: tabular-nums; color: var(--heikko); min-width: 3em; }
   .viikko .tyhja { color: var(--heikko); font-size: .9em; }
+  .viikko .rullaus { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .viikko .vkoraja { font-size: .75em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--heikko); padding: .7em 0 .1em; }
 
   .tyhja-iso { color: var(--heikko); font-size: 1.2em; padding: .4em 0; }
   .lisaa { color: var(--heikko); font-size: .85em; }
@@ -209,6 +211,9 @@ const AINEET = {
 const VARUSTEET = { LI: '👟 liikuntavarusteet' };
 const URHEILU = ['🏒', '🤸', '⚽']; // MyClub-merkinnät → "Muista huomiseksi" (varusteet)
 const PAIVITYSVALI_MIN = 5;
+const TULOSSA_PAIVIA = 31;   // Tulossa-lista: ylihuomisesta kuukausi eteenpäin, rullattava
+const TULOSSA_TYHJAT = 4;    // näin monta lähintä päivää näytetään, vaikka menoja ei olisi
+const RULLAUS_PALAUTUS_S = 90; // rullauksen jälkeen lista palaa alkuun tämän ajan kuluttua
 const YO_ALKAA = 21, YO_PAATTYY = 6; // näyttö tummenee illaksi
 
 const VIIKONPAIVAT = ['sunnuntai', 'maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai'];
@@ -433,15 +438,18 @@ function piirra() {
   const muistaHtml = poikkeusHuomenna.concat(muistettavat, laksyt, varusteet, urheilu);
 
   let viikko = '';
-  for (let i = 2; i < 6; i++) {
+  let edVko = viikkonumero(paivanAlku(nyt, 1));
+  for (let i = 2; i <= TULOSSA_PAIVIA; i++) {
     const p = paivanAlku(nyt, i);
     const lista = paivanTapahtumat(tapahtumat, p).filter(t => !t.koulu);
+    if (!lista.length && i - 2 >= TULOSSA_TYHJAT) continue;
+    const vko = viikkonumero(p);
+    if (vko !== edVko) { viikko += '<div class="vkoraja">Vko ' + vko + '</div>'; edVko = vko; }
     viikko += '<div class="paivarivi"><div class="pvnimi">' + VIIKONPAIVAT[p.getDay()].replace(/^./, c => c.toUpperCase()) +
       '<span>' + p.getDate() + '.' + (p.getMonth() + 1) + '.</span></div>' +
-      (lista.length ? lista.slice(0, 4).map(t =>
+      (lista.length ? lista.map(t =>
         '<div class="rivi"' + variTyyli(t) + '><span class="piste"></span><span class="klo">' + (t.kokoPaiva ? '' : klo(t.alkuD)) + '</span><span>' +
-        (t.nimiNakyviin ? esc(t.henkilo.nimi) + ': ' : '') + (t.poikkeus ? '⚠️ ' : t.kuvake ? t.kuvake + ' ' : '') + esc(t.otsikko) + '</span></div>').join('') +
-        (lista.length > 4 ? '<div class="rivi lisaa">+ ' + (lista.length - 4) + ' muuta</div>' : '')
+        (t.nimiNakyviin ? esc(t.henkilo.nimi) + ': ' : '') + (t.poikkeus ? '⚠️ ' : t.kuvake ? t.kuvake + ' ' : '') + esc(t.otsikko) + '</span></div>').join('')
       : '<div class="tyhja">–</div>') +
       '</div>';
   }
@@ -450,6 +458,9 @@ function piirra() {
   const vanha = ikaMin !== null && ikaMin > PAIVITYSVALI_MIN * 3;
   const tila = DEMO ? 'Demotila' : virhe && vanha ? 'Ei yhteyttä – tiedot ' + ikaMin + ' min vanhoja' : 'Päivitetty ' + (ikaMin === 0 ? 'juuri' : ikaMin + ' min sitten');
 
+  // Piirto toistuu 20 s välein: rullauskohta säilyy, kunnes listaa ei ole koskettu hetkeen.
+  const vanhaRullaus = document.querySelector('.viikko .rullaus');
+  const rullausKohta = vanhaRullaus && Date.now() - viimeksiRullattu < RULLAUS_PALAUTUS_S * 1000 ? vanhaRullaus.scrollTop : 0;
   document.getElementById('sovellus').innerHTML =
     '<div class="sivu">' +
       '<header>' +
@@ -467,11 +478,20 @@ function piirra() {
           '<section class="kortti muistalaatikko"><h2>Muista huomiseksi</h2>' +
             (muistaHtml.length ? '<ul>' + muistaHtml.slice(0, 7).join('') + '</ul>' : '<div class="tyhja">Ei mitään erityistä</div>') +
           '</section>' +
-          '<section class="kortti viikko"><h2>Tulossa</h2>' + viikko + '</section>' +
+          '<section class="kortti viikko"><h2>Tulossa</h2><div class="rullaus">' + viikko + '</div></section>' +
         '</div>' +
       '</main>' +
     '</div>';
   sovitaListat();
+  const uusiRullaus = document.querySelector('.viikko .rullaus');
+  if (uusiRullaus) uusiRullaus.scrollTop = rullausKohta;
+}
+
+let viimeksiRullattu = 0;
+for (const tapahtuma of ['touchstart', 'touchmove', 'wheel', 'pointerdown']) {
+  document.addEventListener(tapahtuma, e => {
+    if (e.target.closest && e.target.closest('.viikko .rullaus')) viimeksiRullattu = Date.now();
+  }, { passive: true, capture: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -626,6 +646,12 @@ function demoData() {
       { otsikko: '🤖 Vanhempainilta', alku: iso(4, 18, 0), loppu: iso(4, 19, 30) },
       { otsikko: '🤸 Ella: Voimistelu', alku: iso(5, 17, 30), loppu: iso(5, 19, 0) },
       { otsikko: '🏒 Otto: Pelijää', alku: iso(4, 14, 50), loppu: iso(4, 15, 50) },
+      { otsikko: 'Äiti: Hammaslääkäri', alku: iso(8, 15, 0), loppu: iso(8, 16, 0) },
+      { otsikko: '🏒 Otto: Turnaus', alku: iso(13, 9, 0), loppu: iso(13, 14, 0) },
+      { otsikko: '🤖 Ella: Joulukonsertti', alku: iso(15, 18, 0), loppu: iso(15, 19, 0), muista: 'tonttulakki' },
+      { otsikko: '💼 Työmatka', alku: iso(19, 7, 0), loppu: iso(19, 18, 0) },
+      { otsikko: '🏫 Joulujuhla', kokoPaiva: true, alku: pv(26), loppu: pv(27), poikkeus: 'Koulu päättyy klo 11.00' },
+      { otsikko: 'Mummola', alku: iso(30, 12, 0), loppu: iso(30, 18, 0) },
     ],
   };
 }
