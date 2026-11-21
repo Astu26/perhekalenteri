@@ -287,6 +287,7 @@ function tulkitse(t) {
   else if (otsikko.includes('🤖') || otsikko.includes('🏫')) kuvake = '🏫';
   else if (otsikko.includes('💼')) kuvake = '💼';
   else if (otsikko.includes('📚')) kuvake = '📚';
+  else if (t.tyo) kuvake = '💼'; // työkalenterista tullut kutsu (Naytto.gs, TYO_KUTSUJA)
   otsikko = otsikko.replace(/[⚽🏒🤸🤖🏫💼❓📚]/gu, '').trim();
 
   // Henkilö: "Nimi: Retki" → merkki + "Retki". Nimi muualla otsikossa → vain väri.
@@ -649,6 +650,7 @@ function demoData() {
       { otsikko: 'Äiti: Hammaslääkäri', alku: iso(8, 15, 0), loppu: iso(8, 16, 0) },
       { otsikko: '🏒 Otto: Turnaus', alku: iso(13, 9, 0), loppu: iso(13, 14, 0) },
       { otsikko: '🤖 Ella: Joulukonsertti', alku: iso(15, 18, 0), loppu: iso(15, 19, 0), muista: 'tonttulakki' },
+      { otsikko: 'Hallituksen kokous', tyo: true, alku: iso(9, 17, 0), loppu: iso(9, 19, 0) },
       { otsikko: '💼 Työmatka', alku: iso(19, 7, 0), loppu: iso(19, 18, 0) },
       { otsikko: '🏫 Joulujuhla', kokoPaiva: true, alku: pv(26), loppu: pv(27), poikkeus: 'Koulu päättyy klo 11.00' },
       { otsikko: 'Mummola', alku: iso(30, 12, 0), loppu: iso(30, 18, 0) },
